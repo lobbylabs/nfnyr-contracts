@@ -10,20 +10,20 @@ module.exports = async ({ getNamedAccounts, deployments }) => {
   console.log("\n\n 📡 Deploying...\n");
 
   // read in all the assets to get their IPFS hash...
-  let uploadedAssets = JSON.parse(fs.readFileSync("./uploaded.json"))
-  let bytes32Array = []
-  for(let a in uploadedAssets){
-    console.log(" 🏷 IPFS:",a)
-    let bytes32 = ethers.utils.id(a)
-    console.log(" #️⃣ hashed:",bytes32)
-    bytes32Array.push(bytes32)
+  const uploadedAssets = JSON.parse(fs.readFileSync("./uploaded.json"));
+  const bytes32Array = [];
+  for (const a in uploadedAssets) {
+    console.log(" 🏷 IPFS:", a);
+    const bytes32 = ethers.utils.id(a);
+    console.log(" #️⃣ hashed:", bytes32);
+    bytes32Array.push(bytes32);
   }
-  console.log(" \n")
+  console.log(" \n");
 
-  await deploy("YourCollectible", {
+  await deploy("NonFungibleNewYearsResolutions", {
     // Learn more about args here: https://www.npmjs.com/package/hardhat-deploy#deploymentsdeploy
     from: deployer,
-    args: [ bytes32Array ],
+    args: [bytes32Array],
     log: true,
   });
 
@@ -63,7 +63,7 @@ module.exports = async ({ getNamedAccounts, deployments }) => {
   });
   */
 };
-module.exports.tags = ["YourCollectible"];
+module.exports.tags = ["NonFungibleNewYearsResolutions"];
 
 /*
 Tenderly verification

@@ -31,5 +31,7 @@
    "search.exclude": {
       "**/yarn-error.log": true,
       "**/yarn.lock": true
-   }
+   },
+   "solidity.compileUsingRemoteVersion": "v0.6.12+commit.27d51765",
+   "solidity.defaultCompiler": "localNodeModule"
 }
