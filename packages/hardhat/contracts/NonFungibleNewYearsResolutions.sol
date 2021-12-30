@@ -13,12 +13,7 @@ import "@openzeppelin/contracts/utils/Counters.sol";
 
 // GET LISTED ON OPENSEA: https://testnets.opensea.io/get-listed/step-two
 
-contract NonFungibleNewYearsResolutions is
-    ERC721,
-    ERC721URIStorage,
-    ERC721Pausable,
-    Ownable
-{
+contract NonFungibleNewYearsResolutions is ERC721Pausable, Ownable {
     using Counters for Counters.Counter;
     Counters.Counter private _tokenIds;
 
@@ -26,15 +21,12 @@ contract NonFungibleNewYearsResolutions is
 
     string internal _baseURIextended;
 
-    constructor(bytes32[] memory assetsForSale)
+    constructor(address owner)
         public
         ERC721("Non-fungible New Year's Resolutions", "NFNYR")
     {
-        _transferOwnership(msg.sender);
         setBaseURI("https://ipfs.io/ipfs/");
-        for (uint256 i = 0; i < assetsForSale.length; i++) {
-            tokenIdToIpfsHash[i] = assetsForSale[i];
-        }
+        _transferOwnership(owner);
     }
 
     //whitelisted recipients to transfer to
@@ -50,6 +42,8 @@ contract NonFungibleNewYearsResolutions is
         public tokenIdsByAccountabilityPartner;
     //mapping of tokenIds to the address of the accountability partner
     mapping(uint256 => address) public tokenIdToAccountabilityPartner;
+    //mapping of tokenIds to the address of the accountability partner
+    mapping(address => uint256) public accountabilityPartnerBalance;
 
     function pause() public onlyOwner {
         _pause();
@@ -77,25 +71,26 @@ contract NonFungibleNewYearsResolutions is
 
         uriToTokenId[uriHash] = id;
 
+        uint256 index = accountabilityPartnerBalance[partner];
+        accountabilityPartnerBalance[partner]++;
+        tokenIdsByAccountabilityPartner[partner][index] = id;
+        tokenIdToAccountabilityPartner[id] = partner;
+
         return id;
     }
 
-    function transfer(address to, uint256 tokenId)
-        public
-        whenNotPaused
-        returns (bool)
-    {
+    function transfer(address to, uint256 tokenId) public whenNotPaused {
         require(whitelist[to] == true, "Recipient is not whitelisted.");
-        return super.transfer(to, tokenId);
+        _transfer(msg.sender, to, tokenId);
     }
 
     function transferFrom(
         address from,
         address to,
         uint256 tokenId
-    ) public override whenNotPaused returns (bool) {
+    ) public override whenNotPaused {
         require(whitelist[to] == true, "Recipient is not whitelisted.");
-        return super.transferFrom(from, to, tokenId);
+        _transfer(from, to, tokenId);
     }
 
     function burn(uint256 tokenId) public whenNotPaused {
@@ -105,6 +100,21 @@ contract NonFungibleNewYearsResolutions is
 
     function setWhitelist(address _addr, bool _whitelisted) public onlyOwner {
         whitelist[_addr] = _whitelisted;
+    }
+
+    function withdraw(address payable _to, uint256 _amount)
+        external
+        onlyOwner
+        returns (bool sent, bytes memory data)
+    {
+        require(_amount < address(this).balance, "Not enough balance");
+        require(_amount > 0, "Amount must be greater than 0");
+
+        (bool sent, bytes memory data) = _to.call{value: _amount}("");
+    }
+
+    function contractBalance() public view returns (uint256) {
+        return address(this).balance;
     }
 
     function setBaseURI(string memory baseURI_) public onlyOwner {
@@ -149,7 +159,7 @@ contract NonFungibleNewYearsResolutions is
         if (bytes(_tokenURI).length > 0) {
             return string(abi.encodePacked(base, _tokenURI));
         }
-        // If there is a baseURI but no tokenURI, concatenate the tokenID to the baseURI.
-        return string(abi.encodePacked(base, tokenId.toString()));
+        // If there is a baseURI but no tokenURI, return the base because this shouldn't happen
+        return string(abi.encodePacked(base));
     }
 }

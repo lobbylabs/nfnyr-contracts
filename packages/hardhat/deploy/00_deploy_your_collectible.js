@@ -9,21 +9,10 @@ module.exports = async ({ getNamedAccounts, deployments }) => {
 
   console.log("\n\n 📡 Deploying...\n");
 
-  // read in all the assets to get their IPFS hash...
-  const uploadedAssets = JSON.parse(fs.readFileSync("./uploaded.json"));
-  const bytes32Array = [];
-  for (const a in uploadedAssets) {
-    console.log(" 🏷 IPFS:", a);
-    const bytes32 = ethers.utils.id(a);
-    console.log(" #️⃣ hashed:", bytes32);
-    bytes32Array.push(bytes32);
-  }
-  console.log(" \n");
-
   await deploy("NonFungibleNewYearsResolutions", {
     // Learn more about args here: https://www.npmjs.com/package/hardhat-deploy#deploymentsdeploy
     from: deployer,
-    args: [bytes32Array],
+    args: ["0x18EE15f0C12B3035C84a9A1027dB1e1151308ac5"],
     log: true,
   });
 

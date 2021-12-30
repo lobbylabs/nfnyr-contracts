@@ -11,7 +11,6 @@ import { BrowserRouter, Link, Route, Switch } from "react-router-dom";
 import StackGrid from "react-stack-grid";
 import Web3Modal from "web3modal";
 import "./App.css";
-import assets from "./assets.js";
 import { Account, Address, AddressInput, Contract, Faucet, GasGauge, Header, Ramp, ThemeSwitch } from "./components";
 import { INFURA_ID, NETWORK, NETWORKS } from "./constants";
 import { Transactor } from "./helpers";
@@ -23,15 +22,11 @@ import {
   useOnBlock,
   useUserProviderAndSigner,
 } from "eth-hooks";
-import {
-  useEventListener,
-} from "eth-hooks/events/useEventListener";
-import {
-  useExchangeEthPrice,
-} from "eth-hooks/dapps/dex";
+import { useEventListener } from "eth-hooks/events/useEventListener";
+import { useExchangeEthPrice } from "eth-hooks/dapps/dex";
 // import Hints from "./Hints";
 
-import { useContractConfig } from "./hooks"
+import { useContractConfig } from "./hooks";
 import Portis from "@portis/web3";
 import Fortmatic from "fortmatic";
 import Authereum from "authereum";
@@ -44,7 +39,7 @@ const ipfsAPI = require("ipfs-http-client");
 
 const ipfs = ipfsAPI({ host: "ipfs.infura.io", port: "5001", protocol: "https" });
 
-console.log("📦 Assets: ", assets);
+// console.log("📦 Assets: ", assets);
 /*
     Welcome to 🏗 scaffold-eth !
 
@@ -114,7 +109,11 @@ if (DEBUG) console.log("📡 Connecting to Mainnet Ethereum");
 const scaffoldEthProvider = navigator.onLine
   ? new ethers.providers.StaticJsonRpcProvider("https://rpc.scaffoldeth.io:48544")
   : null;
-const poktMainnetProvider = navigator.onLine ? new ethers.providers.StaticJsonRpcProvider("https://eth-mainnet.gateway.pokt.network/v1/lb/611156b4a585a20035148406") : null;
+const poktMainnetProvider = navigator.onLine
+  ? new ethers.providers.StaticJsonRpcProvider(
+      "https://eth-mainnet.gateway.pokt.network/v1/lb/611156b4a585a20035148406",
+    )
+  : null;
 const mainnetInfura = navigator.onLine
   ? new ethers.providers.StaticJsonRpcProvider("https://mainnet.infura.io/v3/" + INFURA_ID)
   : null;
@@ -158,7 +157,6 @@ const web3Modal = new Web3Modal({
           100: "https://dai.poa.network", // xDai
         },
       },
-
     },
     portis: {
       display: {
@@ -291,28 +289,34 @@ function App(props) {
   ]);
 
   // keep track of a variable from the contract in the local React state:
-  const balance = useContractReader(readContracts, "YourCollectible", "balanceOf", [address]);
+  const balance = useContractReader(readContracts, "NonFungibleNewYearsResolutions", "balanceOf", [address]);
   console.log("🤗 balance:", balance);
 
   // 📟 Listen for broadcast events
-  const transferEvents = useEventListener(readContracts, "YourCollectible", "Transfer", localProvider, 1);
+  const transferEvents = useEventListener(
+    readContracts,
+    "NonFungibleNewYearsResolutions",
+    "Transfer",
+    localProvider,
+    1,
+  );
   console.log("📟 Transfer events:", transferEvents);
 
   //
-  // 🧠 This effect will update yourCollectibles by polling when your balance changes
+  // 🧠 This effect will update NonFungibleNewYearsResolutionss by polling when your balance changes
   //
   const yourBalance = balance && balance.toNumber && balance.toNumber();
-  const [yourCollectibles, setYourCollectibles] = useState();
+  const [NonFungibleNewYearsResolutionss, setNonFungibleNewYearsResolutionss] = useState();
 
   useEffect(() => {
-    const updateYourCollectibles = async () => {
+    const updateNonFungibleNewYearsResolutionss = async () => {
       const collectibleUpdate = [];
       for (let tokenIndex = 0; tokenIndex < balance; tokenIndex++) {
         try {
           console.log("GEtting token index", tokenIndex);
-          const tokenId = await readContracts.YourCollectible.tokenOfOwnerByIndex(address, tokenIndex);
+          const tokenId = await readContracts.NonFungibleNewYearsResolutions.tokenOfOwnerByIndex(address, tokenIndex);
           console.log("tokenId", tokenId);
-          const tokenURI = await readContracts.YourCollectible.tokenURI(tokenId);
+          const tokenURI = await readContracts.NonFungibleNewYearsResolutions.tokenURI(tokenId);
           console.log("tokenURI", tokenURI);
 
           const ipfsHash = tokenURI.replace("https://ipfs.io/ipfs/", "");
@@ -331,9 +335,9 @@ function App(props) {
           console.log(e);
         }
       }
-      setYourCollectibles(collectibleUpdate);
+      setNonFungibleNewYearsResolutionss(collectibleUpdate);
     };
-    updateYourCollectibles();
+    updateNonFungibleNewYearsResolutionss();
   }, [address, yourBalance]);
 
   /*
@@ -464,8 +468,6 @@ function App(props) {
     );
   }
 
-
-
   const loadWeb3Modal = useCallback(async () => {
     const provider = await web3Modal.connect();
     setInjectedProvider(new ethers.providers.Web3Provider(provider));
@@ -540,15 +542,15 @@ function App(props) {
 
   const [loadedAssets, setLoadedAssets] = useState();
   useEffect(() => {
-    const updateYourCollectibles = async () => {
+    const updateNonFungibleNewYearsResolutionss = async () => {
       const assetUpdate = [];
-      for (const a in assets) {
+      for (const a in []) {
         try {
-          const forSale = await readContracts.YourCollectible.forSale(ethers.utils.id(a));
+          const forSale = await readContracts.NonFungibleNewYearsResolutions.forSale(ethers.utils.id(a));
           let owner;
           if (!forSale) {
-            const tokenId = await readContracts.YourCollectible.uriToTokenId(ethers.utils.id(a));
-            owner = await readContracts.YourCollectible.ownerOf(tokenId);
+            const tokenId = await readContracts.NonFungibleNewYearsResolutions.uriToTokenId(ethers.utils.id(a));
+            owner = await readContracts.NonFungibleNewYearsResolutions.ownerOf(tokenId);
           }
           assetUpdate.push({ id: a, ...assets[a], forSale, owner });
         } catch (e) {
@@ -557,8 +559,8 @@ function App(props) {
       }
       setLoadedAssets(assetUpdate);
     };
-    if (readContracts && readContracts.YourCollectible) updateYourCollectibles();
-  }, [assets, readContracts, transferEvents]);
+    if (readContracts && readContracts.NonFungibleNewYearsResolutions) updateNonFungibleNewYearsResolutionss();
+  }, [ readContracts, transferEvents]);
 
   const galleryList = [];
   for (const a in loadedAssets) {
@@ -571,7 +573,7 @@ function App(props) {
           <Button
             onClick={() => {
               console.log("gasPrice,", gasPrice);
-              tx(writeContracts.YourCollectible.mintItem(loadedAssets[a].id, { gasPrice }));
+              tx(writeContracts.NonFungibleNewYearsResolutions.mintItem(loadedAssets[a].id, { gasPrice }));
             }}
           >
             Mint
@@ -635,14 +637,14 @@ function App(props) {
               Gallery
             </Link>
           </Menu.Item>
-          <Menu.Item key="/yourcollectibles">
+          <Menu.Item key="/NonFungibleNewYearsResolutionss">
             <Link
               onClick={() => {
-                setRoute("/yourcollectibles");
+                setRoute("/NonFungibleNewYearsResolutionss");
               }}
-              to="/yourcollectibles"
+              to="/NonFungibleNewYearsResolutionss"
             >
-              YourCollectibles
+              NonFungibleNewYearsResolutionss
             </Link>
           </Menu.Item>
           <Menu.Item key="/transfers">
@@ -702,11 +704,11 @@ function App(props) {
             </div>
           </Route>
 
-          <Route path="/yourcollectibles">
+          <Route path="/NonFungibleNewYearsResolutionss">
             <div style={{ width: 640, margin: "auto", marginTop: 32, paddingBottom: 32 }}>
               <List
                 bordered
-                dataSource={yourCollectibles}
+                dataSource={NonFungibleNewYearsResolutionss}
                 renderItem={item => {
                   const id = item.id.toNumber();
                   return (
@@ -745,7 +747,13 @@ function App(props) {
                         <Button
                           onClick={() => {
                             console.log("writeContracts", writeContracts);
-                            tx(writeContracts.YourCollectible.transferFrom(address, transferToAddresses[id], id));
+                            tx(
+                              writeContracts.NonFungibleNewYearsResolutions.transferFrom(
+                                address,
+                                transferToAddresses[id],
+                                id,
+                              ),
+                            );
                           }}
                         >
                           Transfer
@@ -852,7 +860,7 @@ function App(props) {
           </Route>
           <Route path="/debugcontracts">
             <Contract
-              name="YourCollectible"
+              name="NonFungibleNewYearsResolutions"
               signer={userSigner}
               provider={localProvider}
               address={address}

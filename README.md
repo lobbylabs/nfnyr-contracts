@@ -86,11 +86,11 @@ Your artwork from `artwork.json` (if uploaded and deployed correctly) should sho
 
 ---
 
-🕵🏻‍♂️ Inspect the `Debug Contracts` tab to figure out what address is the `owner` of `YourCollectible`?
+🕵🏻‍♂️ Inspect the `Debug Contracts` tab to figure out what address is the `owner` of `NonFungibleNewYearsResolutions`?
 
 💼 Edit your deployment script `deploy.js` in `packages/hardhat/scripts`
 
-🔏 Edit your smart contract `YourCollectible.sol` in `packages/hardhat/contracts`
+🔏 Edit your smart contract `NonFungibleNewYearsResolutions.sol` in `packages/hardhat/contracts`
 
 📝 Edit your frontend `App.jsx` in `packages/react-app/src`
 
