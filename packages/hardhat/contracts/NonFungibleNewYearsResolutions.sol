@@ -6,6 +6,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Pausable.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
+import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 
 //import "@openzeppelin/contracts/access/Ownable.sol";
@@ -18,6 +19,7 @@ contract NonFungibleNewYearsResolutions is ERC721Pausable, Ownable {
     event MintUnpaused();
     event VerificationPaused();
     event VerificationUnpaused();
+    event MaxPerAccountUpdated(uint256 newMaxPerAccount);
     event Verified(
         uint256 tokenId,
         bool completed,
@@ -26,6 +28,7 @@ contract NonFungibleNewYearsResolutions is ERC721Pausable, Ownable {
     );
     event Unverified(uint256 tokenId, address owner, address partner);
     event RedemptionContractUpdated(address _addr, bool _whitelisted);
+    event IpfsSignerUpdated(address _addr, bool _whitelisted);
 
     using Counters for Counters.Counter;
     Counters.Counter private _tokenIds;
@@ -38,12 +41,14 @@ contract NonFungibleNewYearsResolutions is ERC721Pausable, Ownable {
     string internal _baseURIextended;
 
     constructor(address owner)
-        public
-        ERC721("Non-fungible New Year's Resolutions", "NFNYR")
+        ERC721("Non-Fungible New Year's Resolutions", "NFNYR")
     {
         setBaseURI("https://ipfs.io/ipfs/");
         _transferOwnership(owner);
     }
+
+    //signers of ipfs hash signatures
+    mapping(address => bool) public ipfsSigners;
 
     //whitelisted recipient addresses to transfer to after challenge ends
     mapping(address => bool) public redemptionContracts;
@@ -150,6 +155,7 @@ contract NonFungibleNewYearsResolutions is ERC721Pausable, Ownable {
             "Only the accountability partner can verify"
         );
 
+        tokenIdVerificationComplete[tokenId] = true;
         tokenIdVerificationValue[tokenId] = completed;
 
         emit Verified(
@@ -190,17 +196,21 @@ contract NonFungibleNewYearsResolutions is ERC721Pausable, Ownable {
         return true;
     }
 
-    /**
+    /*
      * Mint a new token
-     * @param tokenURI - the uri of the challenge
+     * @param _tokenURI - the uri of the challenge
      * @param partner - the address of the accountability partner
+     * @param signature - the signature of generated data
      * @return id - token id minted
      */
-    function mintItem(string memory tokenURI, address partner)
-        public
-        payable
-        returns (uint256)
-    {
+    function mintItem(
+        string memory _tokenURI,
+        address partner,
+        // bytes memory signature
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) public payable returns (uint256) {
         require(mintPaused == false, "Minting is paused");
         require(partner != msg.sender, "Cannot be your own partner");
         require(
@@ -212,29 +222,66 @@ contract NonFungibleNewYearsResolutions is ERC721Pausable, Ownable {
             "You must send 0.06 ether to the contract."
         );
 
-        bytes32 uriHash = keccak256(abi.encodePacked(tokenURI));
+        bytes32 uriHash = keccak256(abi.encodePacked(_tokenURI));
         require(
             uriToTokenId[uriHash] == 0,
             "This URI has already been minted."
         );
 
+        // see that the metadata is created from a valid authority
+        bytes32 hash = ECDSA.toEthSignedMessageHash(uriHash);
+        // address _addr = ECDSA.recover(hash, v, r, s);
+        address _addr = ecrecover(hash, v, r, s);
+
+        require(
+            ipfsSigners[_addr] == true,
+            string(
+                abi.encodePacked(
+                    "Not an IPFS signer",
+                    toAsciiString(_addr),
+                    "  ",
+                    uriHash
+                )
+            )
+        );
+
+        // mint the nft
         _tokenIds.increment();
 
         uint256 id = _tokenIds.current();
         _safeMint(msg.sender, id);
-        _setTokenURI(id, tokenURI);
+        _setTokenURI(id, _tokenURI);
 
         uriToTokenId[uriHash] = id;
 
+        // set accountability partner
         uint256 index = accountabilityPartnerBalance[partner];
         accountabilityPartnerBalance[partner]++;
         tokenIdsByAccountabilityPartner[partner][index] = id;
         tokenIdToAccountabilityPartner[id] = partner;
 
+        // transfer funds to owner for custody
         (bool success, ) = owner().call{value: msg.value}("");
         require(success, "Failed to transfer funds to owner");
 
         return id;
+    }
+
+    function toAsciiString(address x) internal pure returns (string memory) {
+        bytes memory s = new bytes(40);
+        for (uint256 i = 0; i < 20; i++) {
+            bytes1 b = bytes1(uint8(uint256(uint160(x)) / (2**(8 * (19 - i)))));
+            bytes1 hi = bytes1(uint8(b) / 16);
+            bytes1 lo = bytes1(uint8(b) - 16 * uint8(hi));
+            s[2 * i] = char(hi);
+            s[2 * i + 1] = char(lo);
+        }
+        return string(s);
+    }
+
+    function char(bytes1 b) internal pure returns (bytes1 c) {
+        if (uint8(b) < 10) return bytes1(uint8(b) + 0x30);
+        else return bytes1(uint8(b) + 0x57);
     }
 
     /**
@@ -292,6 +339,27 @@ contract NonFungibleNewYearsResolutions is ERC721Pausable, Ownable {
         redemptionContracts[_addr] = _whitelisted;
 
         emit RedemptionContractUpdated(_addr, _whitelisted);
+    }
+
+    /**
+     * Whitelist a IPFS hash signer address
+     * @param _addr - the address to whitelist
+     * @param _whitelisted - true if the address is whitelisted
+     */
+    function setIpfsSigner(address _addr, bool _whitelisted) public onlyOwner {
+        ipfsSigners[_addr] = _whitelisted;
+
+        emit IpfsSignerUpdated(_addr, _whitelisted);
+    }
+
+    /**
+     * Set the maximum number of items per account
+     * @param _maxPerAccount - the maximum number of items per account
+     */
+    function setMaxPerAccount(uint256 _maxPerAccount) public onlyOwner {
+        maxPerAccount = _maxPerAccount;
+
+        emit MaxPerAccountUpdated(_maxPerAccount);
     }
 
     function accountabilityPartnerOf(uint256 tokenId)
