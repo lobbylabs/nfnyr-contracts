@@ -17,6 +17,9 @@ contract NonFungibleNewYearsResolutions is ERC721Pausable, Ownable {
     using Counters for Counters.Counter;
     Counters.Counter private _tokenIds;
 
+    bool mintPaused = false;
+    bool verificationPaused = false;
+
     uint256 maxPerAccount = 3;
 
     string internal _baseURIextended;
@@ -45,23 +48,143 @@ contract NonFungibleNewYearsResolutions is ERC721Pausable, Ownable {
     //mapping of tokenIds to the address of the accountability partner
     mapping(address => uint256) public accountabilityPartnerBalance;
 
-    function pause() public onlyOwner {
+    // ids that have been verified
+    mapping(uint256 => bool) public tokenIdVerificationValue;
+    // ids that have been verified
+    mapping(uint256 => bool) public tokenIdVerificationComplete;
+
+    /**
+     * Pause minting of new tokens
+     * @dev owner only
+     * @return success - true if successful
+     */
+    function pause() public onlyOwner returns (bool success) {
         _pause();
+        return true;
     }
 
-    function unpause() public onlyOwner {
+    /**
+     * Unpause minting of new tokens
+     * @dev owner only
+     * @return success - true if successful
+     */
+    function unpause() public onlyOwner returns (bool success) {
         _unpause();
+        return true;
     }
 
+    /**
+     * Pause minting of new tokens
+     * @dev owner only
+     * @return success - true if successful
+     */
+    function pauseMint() public onlyOwner returns (bool success) {
+        mintPaused = true;
+        return true;
+    }
+
+    /**
+     * Unpause minting of new tokens
+     * @dev owner only
+     * @return success - true if successful
+     */
+    function unpauseMint() public onlyOwner returns (bool success) {
+        mintPaused = false;
+        return true;
+    }
+
+    /**
+     * Pause verification of new challenges
+     * @dev owner only
+     * @return success - true if successful
+     */
+    function pauseVerification() public onlyOwner returns (bool success) {
+        verificationPaused = true;
+        return true;
+    }
+
+    /**
+     * Unpause verification of new challenges
+     * @dev owner only
+     * @return success - true if successful
+     */
+    function unpauseVerification() public onlyOwner returns (bool success) {
+        verificationPaused = false;
+        return true;
+    }
+
+    /**
+     * Set verification of a users challenge
+     * @param tokenId - the tokenId of the challenge
+     * @param completed - true if the challenge has been verified
+     * @return success - true if successful
+     */
+    function setVerify(uint256 tokenId, bool completed)
+        public
+        returns (bool success)
+    {
+        require(!verificationPaused, "Verification is paused");
+        require(
+            tokenIdVerificationComplete[tokenId] == false,
+            "Token has already been verified"
+        );
+        require(
+            tokenIdToAccountabilityPartner[tokenId] == msg.sender,
+            "Only the accountability partner can verify"
+        );
+
+        tokenIdVerificationValue[tokenId] = completed;
+        return true;
+    }
+
+    /**
+     * Remove the verification status from the challenge
+     * @param tokenId - the tokenId of the challenge
+     * @return success - true if successful
+     */
+    function unverify(uint256 tokenId) public returns (bool success) {
+        require(!verificationPaused, "Verification is paused");
+        require(
+            tokenIdVerificationComplete[tokenId] == true,
+            "Token has not been verified"
+        );
+        require(
+            tokenIdToAccountabilityPartner[tokenId] == msg.sender,
+            "Only the accountability partner can unverify"
+        );
+
+        tokenIdVerificationComplete[tokenId] = false;
+        tokenIdVerificationValue[tokenId] = false;
+
+        return true;
+    }
+
+    /**
+     * Mint a new token
+     * @param tokenURI - the uri of the challenge
+     * @param partner - the address of the accountability partner
+     * @return id - token id minted
+     */
     function mintItem(string memory tokenURI, address partner)
         public
+        payable
         returns (uint256)
     {
+        require(mintPaused == false, "Minting is paused");
         require(
             balanceOf(msg.sender) < maxPerAccount,
             "You have already reached the maximum number of items per account."
         );
+        require(
+            msg.value == 0.06 ether,
+            "You must send 0.06 ether to the contract."
+        );
+
         bytes32 uriHash = keccak256(abi.encodePacked(tokenURI));
+        require(
+            uriToTokenId[uriHash] == 0,
+            "This URI has already been minted."
+        );
 
         _tokenIds.increment();
 
@@ -98,10 +221,23 @@ contract NonFungibleNewYearsResolutions is ERC721Pausable, Ownable {
         _burn(tokenId);
     }
 
+    /**
+     * Whitelist an address
+     * @param _addr - the address to whitelist
+     * @param _whitelisted - true if the address is whitelisted
+     */
     function setWhitelist(address _addr, bool _whitelisted) public onlyOwner {
         whitelist[_addr] = _whitelisted;
     }
 
+    /**
+     * Withdraw the balance of the contract
+     * @dev owner only
+     * @param _to - the address to send the balance to
+     * @param _amount - the amount to send
+     * @return sent - true if successful
+     * @return data - data from the call
+     */
     function withdraw(address payable _to, uint256 _amount)
         external
         onlyOwner
@@ -110,17 +246,26 @@ contract NonFungibleNewYearsResolutions is ERC721Pausable, Ownable {
         require(_amount < address(this).balance, "Not enough balance");
         require(_amount > 0, "Amount must be greater than 0");
 
-        (bool sent, bytes memory data) = _to.call{value: _amount}("");
+        (sent, data) = _to.call{value: _amount}("");
     }
 
     function contractBalance() public view returns (uint256) {
         return address(this).balance;
     }
 
+    /**
+     * Set base token URI for less storage
+     * @param baseURI_ - the base URI
+     */
     function setBaseURI(string memory baseURI_) public onlyOwner {
         _baseURIextended = baseURI_;
     }
 
+    /**
+     * Set the URI of a token
+     * @param tokenId - the tokenId of the token
+     * @param _tokenURI - the uri of the token
+     */
     function _setTokenURI(uint256 tokenId, string memory _tokenURI)
         internal
         virtual
@@ -136,6 +281,11 @@ contract NonFungibleNewYearsResolutions is ERC721Pausable, Ownable {
         return _baseURIextended;
     }
 
+    /**
+     * Get the URI of a token
+     * @param tokenId - the tokenId of the token
+     * @return tokenURI - the uri of the token
+     */
     function tokenURI(uint256 tokenId)
         public
         view
