@@ -32,8 +32,8 @@ contract NonFungibleNewYearsResolutions is ERC721Pausable, Ownable {
         _transferOwnership(owner);
     }
 
-    //whitelisted recipients to transfer to
-    mapping(address => bool) public whitelist;
+    //whitelisted recipient addresses to transfer to after challenge ends
+    mapping(address => bool) public redemptionContracts;
 
     //this maps the tokenId to IPFS hash
     mapping(uint256 => string) public tokenIdToIpfsHash;
@@ -177,7 +177,7 @@ contract NonFungibleNewYearsResolutions is ERC721Pausable, Ownable {
             "You have already reached the maximum number of items per account."
         );
         require(
-            msg.value == 0.06 ether,
+            msg.value <= 0.06 ether,
             "You must send 0.06 ether to the contract."
         );
 
@@ -203,32 +203,59 @@ contract NonFungibleNewYearsResolutions is ERC721Pausable, Ownable {
         return id;
     }
 
+    /**
+     * Transfer token to redemption contract (will implement ERC721Recievable)
+     * @param to - the address of the redemption contract
+     * @param tokenId - the tokenId of the challenge
+     */
     function transfer(address to, uint256 tokenId) public whenNotPaused {
-        require(whitelist[to] == true, "Recipient is not whitelisted.");
+        require(
+            redemptionContracts[to] == true,
+            "Recipient is not a whitelisted redemption contract."
+        );
         _transfer(msg.sender, to, tokenId);
     }
 
+    /**
+     * Transfer token to redemption contract
+     * @param from - the address of the holder
+     * @param to - the address of the redemption contract
+     * @param tokenId - the tokenId of the challenge
+     */
     function transferFrom(
         address from,
         address to,
         uint256 tokenId
     ) public override whenNotPaused {
-        require(whitelist[to] == true, "Recipient is not whitelisted.");
+        require(
+            redemptionContracts[to] == true,
+            "Recipient is not a whitelisted redemption contract."
+        );
         _transfer(from, to, tokenId);
     }
 
-    function burn(uint256 tokenId) public whenNotPaused {
-        require(whitelist[msg.sender] == true, "You are not whitelisted.");
+    /**
+     * Allow a redemption contract to burn the token after the challenge ends
+     * @param tokenId - the tokenId of the challenge
+     */
+    function burn(uint256 tokenId) public whenNotPaused onlyOwner {
+        require(
+            redemptionContracts[msg.sender] == true,
+            "You are not a whitelisted redemption contract."
+        );
         _burn(tokenId);
     }
 
     /**
-     * Whitelist an address
+     * Whitelist a redemption contract address
      * @param _addr - the address to whitelist
      * @param _whitelisted - true if the address is whitelisted
      */
-    function setWhitelist(address _addr, bool _whitelisted) public onlyOwner {
-        whitelist[_addr] = _whitelisted;
+    function setRedemptionContract(address _addr, bool _whitelisted)
+        public
+        onlyOwner
+    {
+        redemptionContracts[_addr] = _whitelisted;
     }
 
     /**
