@@ -171,6 +171,7 @@ contract NonFungibleNewYearsResolutions is ERC721Pausable, Ownable {
         returns (uint256)
     {
         require(mintPaused == false, "Minting is paused");
+        require(partner != msg.sender, "Cannot be your own partner");
         require(
             balanceOf(msg.sender) < maxPerAccount,
             "You have already reached the maximum number of items per account."
