@@ -14,6 +14,19 @@ import "@openzeppelin/contracts/utils/Counters.sol";
 // GET LISTED ON OPENSEA: https://testnets.opensea.io/get-listed/step-two
 
 contract NonFungibleNewYearsResolutions is ERC721Pausable, Ownable {
+    event MintPaused();
+    event MintUnpaused();
+    event VerificationPaused();
+    event VerificationUnpaused();
+    event Verified(
+        uint256 tokenId,
+        bool completed,
+        address owner,
+        address partner
+    );
+    event Unverified(uint256 tokenId, address owner, address partner);
+    event RedemptionContractUpdated(address _addr, bool _whitelisted);
+
     using Counters for Counters.Counter;
     Counters.Counter private _tokenIds;
 
@@ -80,6 +93,7 @@ contract NonFungibleNewYearsResolutions is ERC721Pausable, Ownable {
      */
     function pauseMint() public onlyOwner returns (bool success) {
         mintPaused = true;
+        emit MintPaused();
         return true;
     }
 
@@ -90,6 +104,7 @@ contract NonFungibleNewYearsResolutions is ERC721Pausable, Ownable {
      */
     function unpauseMint() public onlyOwner returns (bool success) {
         mintPaused = false;
+        emit MintUnpaused();
         return true;
     }
 
@@ -100,6 +115,7 @@ contract NonFungibleNewYearsResolutions is ERC721Pausable, Ownable {
      */
     function pauseVerification() public onlyOwner returns (bool success) {
         verificationPaused = true;
+        emit VerificationPaused();
         return true;
     }
 
@@ -110,6 +126,7 @@ contract NonFungibleNewYearsResolutions is ERC721Pausable, Ownable {
      */
     function unpauseVerification() public onlyOwner returns (bool success) {
         verificationPaused = false;
+        emit VerificationUnpaused();
         return true;
     }
 
@@ -134,6 +151,14 @@ contract NonFungibleNewYearsResolutions is ERC721Pausable, Ownable {
         );
 
         tokenIdVerificationValue[tokenId] = completed;
+
+        emit Verified(
+            tokenId,
+            completed,
+            ownerOf(tokenId),
+            accountabilityPartnerOf(tokenId)
+        );
+
         return true;
     }
 
@@ -156,6 +181,12 @@ contract NonFungibleNewYearsResolutions is ERC721Pausable, Ownable {
         tokenIdVerificationComplete[tokenId] = false;
         tokenIdVerificationValue[tokenId] = false;
 
+        emit Unverified(
+            tokenId,
+            ownerOf(tokenId),
+            accountabilityPartnerOf(tokenId)
+        );
+
         return true;
     }
 
@@ -177,7 +208,7 @@ contract NonFungibleNewYearsResolutions is ERC721Pausable, Ownable {
             "You have already reached the maximum number of items per account."
         );
         require(
-            msg.value <= 0.06 ether,
+            msg.value >= 0.06 ether,
             "You must send 0.06 ether to the contract."
         );
 
@@ -199,6 +230,9 @@ contract NonFungibleNewYearsResolutions is ERC721Pausable, Ownable {
         accountabilityPartnerBalance[partner]++;
         tokenIdsByAccountabilityPartner[partner][index] = id;
         tokenIdToAccountabilityPartner[id] = partner;
+
+        (bool success, ) = owner().call{value: msg.value}("");
+        require(success, "Failed to transfer funds to owner");
 
         return id;
     }
@@ -256,6 +290,16 @@ contract NonFungibleNewYearsResolutions is ERC721Pausable, Ownable {
         onlyOwner
     {
         redemptionContracts[_addr] = _whitelisted;
+
+        emit RedemptionContractUpdated(_addr, _whitelisted);
+    }
+
+    function accountabilityPartnerOf(uint256 tokenId)
+        public
+        view
+        returns (address)
+    {
+        return tokenIdToAccountabilityPartner[tokenId];
     }
 
     /**
@@ -275,6 +319,8 @@ contract NonFungibleNewYearsResolutions is ERC721Pausable, Ownable {
         require(_amount > 0, "Amount must be greater than 0");
 
         (sent, data) = _to.call{value: _amount}("");
+
+        return (sent, data);
     }
 
     function contractBalance() public view returns (uint256) {
