@@ -25,9 +25,9 @@ const { isAddress, getAddress, formatUnits, parseUnits } = utils;
 //
 // Select the network you want to deploy to here:
 //
-const defaultNetwork = "kovan";
+const defaultNetwork = "mainnet";
 
-const mainnetGwei = 21;
+const mainnetGwei = 72;
 
 function mnemonic() {
   try {

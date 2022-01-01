@@ -4,8 +4,6 @@ pragma solidity >=0.8.0 <0.9.0;
 //import "hardhat/console.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
-import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Pausable.sol";
-import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 
@@ -14,7 +12,9 @@ import "@openzeppelin/contracts/utils/Counters.sol";
 
 // GET LISTED ON OPENSEA: https://testnets.opensea.io/get-listed/step-two
 
-contract NonFungibleNewYearsResolutions is ERC721Pausable, Ownable {
+contract NonFungibleNewYearsResolutions is ERC721, Ownable {
+    event TransferPaused();
+    event TransferUnpaused();
     event MintPaused();
     event MintUnpaused();
     event VerificationPaused();
@@ -33,6 +33,7 @@ contract NonFungibleNewYearsResolutions is ERC721Pausable, Ownable {
     using Counters for Counters.Counter;
     Counters.Counter private _tokenIds;
 
+    bool internal _paused = false;
     bool mintPaused = false;
     bool verificationPaused = false;
 
@@ -71,13 +72,19 @@ contract NonFungibleNewYearsResolutions is ERC721Pausable, Ownable {
     // ids that have been verified
     mapping(uint256 => bool) public tokenIdVerificationComplete;
 
+    modifier whenNotPaused() {
+        require(!_paused, "Transfers are paused.");
+        _;
+    }
+
     /**
      * Pause minting of new tokens
      * @dev owner only
      * @return success - true if successful
      */
     function pause() public onlyOwner returns (bool success) {
-        _pause();
+        _paused = true;
+        emit TransferPaused();
         return true;
     }
 
@@ -87,7 +94,8 @@ contract NonFungibleNewYearsResolutions is ERC721Pausable, Ownable {
      * @return success - true if successful
      */
     function unpause() public onlyOwner returns (bool success) {
-        _unpause();
+        _paused = false;
+        emit TransferUnpaused();
         return true;
     }
 
@@ -389,6 +397,26 @@ contract NonFungibleNewYearsResolutions is ERC721Pausable, Ownable {
         (sent, data) = _to.call{value: _amount}("");
 
         return (sent, data);
+    }
+
+    function isChallengeSuccess(uint256 tokenId) public view returns (bool) {
+        return
+            tokenIdVerificationComplete[tokenId] &&
+            tokenIdVerificationValue[tokenId];
+    }
+
+    function isChallengeFail(uint256 tokenId) public view returns (bool) {
+        return
+            tokenIdVerificationComplete[tokenId] &&
+            !tokenIdVerificationValue[tokenId];
+    }
+
+    function isChallengeIncomplete(uint256 tokenId) public view returns (bool) {
+        return !tokenIdVerificationComplete[tokenId];
+    }
+
+    function paused() public view returns (bool) {
+        return !tokenIdVerificationComplete[tokenId];
     }
 
     function contractBalance() public view returns (uint256) {

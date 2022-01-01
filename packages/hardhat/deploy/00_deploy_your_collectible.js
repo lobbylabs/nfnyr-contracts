@@ -12,7 +12,7 @@ module.exports = async ({ getNamedAccounts, deployments }) => {
   await deploy("NonFungibleNewYearsResolutions", {
     // Learn more about args here: https://www.npmjs.com/package/hardhat-deploy#deploymentsdeploy
     from: deployer,
-    args: ["0x18EE15f0C12B3035C84a9A1027dB1e1151308ac5"],
+    args: ["0xA3136937f22c4c71c4d25106094A24640e677a39"],
     log: true,
   });
 

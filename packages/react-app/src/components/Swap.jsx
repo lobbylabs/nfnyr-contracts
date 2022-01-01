@@ -97,6 +97,7 @@ function Swap({ selectedProvider, tokenListURI }) {
   const debouncedAmountOut = useDebounce(amountOut, 500);
 
   const activeChainId = process.env.REACT_APP_NETWORK === "kovan" ? ChainId.KOVAN : ChainId.MAINNET;
+  // const activeChainId =  ChainId.MAINNET;
 
   useEffect(() => {
     const getTokenList = async () => {
